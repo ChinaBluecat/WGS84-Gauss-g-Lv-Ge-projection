@@ -7,9 +7,10 @@ import os
 
 '''
 注意要做角度-弧度转换radians
+参考公式：https://wenku.baidu.com/view/5776611cd4d8d15abf234e14.html
 '''
 
-open_file_name = u'some.txt'
+open_file_name = u'处理后POS数据.txt'
 to_file_name = u'save.txt'
 #参数
 a  = 6378137                #椭球长半轴
@@ -17,7 +18,7 @@ b  = 6356752.3142           #椭球短半轴
 f  = 1-b/a                  #椭球扁率
 e  = sqrt(a**2-b**2)/a      #椭球第一偏心率
 et = sqrt(a**2-b**2)/b      #椭球第二偏心率
-pt = 180.0*3600/pi
+#pt = 1.0#180.0*3600/pi      #如果进行了弧度变换,就不需要这个参数
 L0 = 111.0                  #中心轴线   可设
 
 
@@ -28,7 +29,7 @@ class arg_m():
         self.e  = float(e)      #第一偏心率
         self.m0 = self.a*(1-e**2)
         self.m2 = 3*self.e**2*self.m0/2
-        self.m4 = 5*self.e**2*self.m2
+        self.m4 = 5*self.e**2*self.m2/4     #似乎公式上漏了/4
         self.m6 = 7*self.e**2*self.m4/6
         self.m8 = 9*self.e**2*self.m6/8
 
@@ -42,7 +43,7 @@ class arg_a(arg_m):
         self.a6 = self.m6/32+self.m8/16
         self.a8 = self.m8/128
 
-#参数x集合类,继承a
+#参数x集合类,继承a,计算X
 class arg_x(arg_a):
     def __init__(self,a,e,B):
         arg_a.__init__(self,a,e)
@@ -67,8 +68,8 @@ def gaosi_Y(B,L):
     N  = a/sqrt(1-e**2*sin(B)**2)
     
     y1 = N*cos(B)*Lt
-    y2 = N*cos(B)**3*(1-t**2+nn**2)*Lt**3/(6*pt**3)
-    y3 = N*cos(B)**5*(5-18*t**2+t**4+14*nn**2-58*nn**2*t**2)*Lt**5/(120*pt**5)
+    y2 = N*cos(B)**3*(1-t**2+nn**2)*Lt**3/(6)
+    y3 = N*cos(B)**5*(5-18*t**2+t**4+14*nn**2-58*nn**2*t**2)*Lt**5/(120)
     Y  = y1 + y2 + y3 + 500000
     return Y
 
@@ -78,16 +79,16 @@ def gaosi_X(B,L):
     global L0
     global pt
     B  = radians(B)
-    L  = radians(L)
+    #L  = radians(L)
     t  = tan(B)
-    Lt = L-L0
+    Lt = radians(L-L0)
     xX = arg_x(a,e,B)
     N  = a/sqrt(1-e**2*sin(B)**2)
     nn = et**2*cos(B)**2
 
-    x1 = N*sin(B)*cos(B)*Lt**2/(2*pt**2)
-    x2 = N*sin(B)*cos(B)**3*(5-t**2+9*nn**2+4*nn**4)*Lt**4/(24*pt**4)
-    x3 = N*sin(B)*cos(B)**5*(61-58*t**2+t**4)*Lt**6/(720*pt**6)
+    x1 = N*sin(B)*cos(B)*Lt**2/(2)
+    x2 = N*sin(B)*cos(B)**3*(5-t**2+9*nn**2+4*nn**4)*Lt**4/(24)
+    x3 = N*sin(B)*cos(B)**5*(61-58*t**2+t**4)*Lt**6/(720)
     X  = xX.X + x1 + x2 + x3
     return X
 
@@ -104,18 +105,34 @@ if __name__ == ('__main__'):
 
     csvRfile = file(open_file_name,'rb')
     csv_rb = csv.reader(csvRfile)
+    csvWfile = file(to_file_name,'w')
+    csv_wb = csv.writer(csvWfile)
 
-    save_txt = file(to_file_name,'w')
+    #save_txt = file(to_file_name,'w')
     i = 1
 
     for line in csv_rb:
+        w_data = []
         x,y = gaosi(float(line[4]),float(line[5]))
+        #w_data.append(i)    #不要的话就不加
+        w_data.append(line[3].strip())
+        w_data.append(str(round(x,3)))  #保留3位小数,不想要就改
+        w_data.append(str(round(y,3)))
+        w_data.append(line[6].strip())
+        w_data.append(line[9].strip())
+        w_data.append(line[10].strip())
+        w_data.append(line[11].strip())
+        csv_wb.writerow(w_data)
+        '''
         save_txt.write(str(i).ljust(10)+line[4][1:].ljust(17)+
                        line[5][1:].ljust(17)+str(x).ljust(17)+
                        str(y).ljust(17)+'\n')
+        '''
         i += 1
+        
         pass
 
-    save_txt.close()
-
+    #save_txt.close()
+    csvRfile.close()
+    csvWfile.close()
 
